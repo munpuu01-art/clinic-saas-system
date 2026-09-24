@@ -170,6 +170,14 @@ export const SuperAdminApi = {
   plans: () => api.get('/super-admin/plans')
 }
 
+/** "แพ็กเกจของฉัน" — เฉพาะบัญชี ADMIN ของคลินิก จัดการแพ็กเกจของคลินิกตัวเอง */
+export const BillingApi = {
+  mySubscription: () => api.get('/billing/subscription'),
+  changePlan: (planCode) => api.post('/billing/subscription/change-plan', { planCode }),
+  cancel: () => api.post('/billing/subscription/cancel'),
+  reactivate: () => api.post('/billing/subscription/reactivate')
+}
+
 export const LookupApi = {
   specialties: () => api.get('/specialties'),
   appointmentTypes: () => api.get('/appointment-types'),

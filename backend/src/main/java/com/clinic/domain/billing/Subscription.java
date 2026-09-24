@@ -69,6 +69,12 @@ public class Subscription extends BaseEntity {
         this.status = SubscriptionStatus.ACTIVE;
     }
     public void requestCancelAtPeriodEnd() { this.cancelAtPeriodEnd = true; }
+    public void cancelTheCancellation() { this.cancelAtPeriodEnd = false; }
+    public void cancelImmediately() {
+        this.status = SubscriptionStatus.CANCELED;
+        this.stripeSubscriptionId = null;
+        this.cancelAtPeriodEnd = false;
+    }
 
     public boolean isUsable() {
         return status == SubscriptionStatus.TRIALING || status == SubscriptionStatus.ACTIVE

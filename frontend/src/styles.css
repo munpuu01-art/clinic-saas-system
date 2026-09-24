@@ -411,3 +411,49 @@ a.btn.primary { background: var(--pine); border-color: var(--pine); color: #fff;
 @media (max-width: 900px) {
   .plan-list { flex-direction: column; }
 }
+
+/* ---------- หน้าแพ็กเกจของฉัน (My Subscription) ---------- */
+.sub-current {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+.sub-plan-name { font-size: 1.3rem; font-weight: 700; }
+.sub-plan-price { color: var(--pine); font-family: 'Space Grotesk', monospace; margin-top: .2rem; }
+.sub-status { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; }
+.sub-cancel-note { color: var(--alert); font-size: .84rem; }
+
+.sub-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+.sub-meta .label { display: block; color: var(--muted); font-size: .82rem; }
+.sub-meta strong { font-size: 1rem; }
+
+.sub-actions { margin-top: .4rem; }
+
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
+.plan-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.plan-tile.current { border-color: var(--pine); background: var(--pine-soft); }
+.plan-tile-head { display: flex; justify-content: space-between; align-items: baseline; }
+.plan-tile-head strong { font-size: 1.05rem; }
+.plan-tile-head span { font-family: 'Space Grotesk', monospace; color: var(--pine); font-size: .9rem; }
+.plan-tile p { margin: 0; color: var(--muted); font-size: .86rem; flex-grow: 1; }
+.plan-tile ul { margin: 0; padding-left: 1.1rem; font-size: .84rem; color: var(--muted); }
+.plan-tile-current-badge {
+  align-self: flex-start;
+  background: var(--pine);
+  color: #fff;
+  font-size: .78rem;
+  padding: .25rem .6rem;
+  border-radius: 999px;
+}

@@ -18,6 +18,7 @@ import com.clinic.security.JwtTokenService;
 import com.clinic.service.ClinicService;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
+import com.stripe.param.SubscriptionUpdateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,12 +44,13 @@ public class ClinicServiceImpl implements ClinicService {
     private final PasswordEncoder encoder;
     private final JwtTokenService tokenService;
     private final StripeConfig stripeConfig;
+    private final com.clinic.service.TenantGuard tenantGuard;
 
     public ClinicServiceImpl(ClinicRepository clinics, PlanRepository plans,
                              SubscriptionRepository subscriptions, UserAccountRepository accounts,
                              DoctorRepository doctors, PatientRepository patients,
                              PasswordEncoder encoder, JwtTokenService tokenService,
-                             StripeConfig stripeConfig) {
+                             StripeConfig stripeConfig, com.clinic.service.TenantGuard tenantGuard) {
         this.clinics = clinics;
         this.plans = plans;
         this.subscriptions = subscriptions;
@@ -58,6 +60,7 @@ public class ClinicServiceImpl implements ClinicService {
         this.encoder = encoder;
         this.tokenService = tokenService;
         this.stripeConfig = stripeConfig;
+        this.tenantGuard = tenantGuard;
     }
 
     @Override
@@ -181,6 +184,160 @@ public class ClinicServiceImpl implements ClinicService {
     @Transactional(readOnly = true)
     public List<PlanResponse> listAllPlansForAdmin() {
         return plans.findAll().stream().map(this::toPlanResponse).toList();
+    }
+
+    /** ---------- ADMIN ของคลินิกตัวเอง: ดู/เปลี่ยน/ยกเลิกแพ็กเกจของตัวเอง ---------- */
+
+    @Override
+    @Transactional(readOnly = true)
+    public SubscriptionResponse getMySubscription() {
+        Long clinicId = tenantGuard.requireCurrentClinicId();
+        return toSubscriptionResponse(loadClinic(clinicId), loadSubscription(clinicId));
+    }
+
+    @Override
+    public ChangePlanResponse changeMyPlan(ChangePlanRequest r) {
+        Long clinicId = tenantGuard.requireCurrentClinicId();
+        Clinic clinic = loadClinic(clinicId);
+        Subscription subscription = loadSubscription(clinicId);
+        Plan currentPlan = subscription.getPlan();
+
+        Plan newPlan = plans.findByCodeIgnoreCase(r.planCode())
+                .filter(Plan::isActive)
+                .orElseThrow(() -> new BusinessRuleException("PLAN_NOT_FOUND", "ไม่พบแพ็กเกจที่เลือก"));
+
+        if (newPlan.getCode().equalsIgnoreCase(currentPlan.getCode())) {
+            throw new BusinessRuleException("SAME_PLAN", "คลินิกนี้ใช้แพ็กเกจนี้อยู่แล้ว");
+        }
+
+        // กรณีที่ 1: เปลี่ยนไปแพ็กเกจฟรี — ยกเลิกการสมัครสมาชิกฝั่ง Stripe ทันที ไม่มีการเก็บเงินอีก
+        if (newPlan.isFree()) {
+            cancelStripeSubscriptionIfAny(subscription);
+            subscription.changePlan(newPlan);
+            subscription.renewPeriod(LocalDateTime.now(), null);
+            subscriptions.save(subscription);
+            clinic.activate();
+            clinics.save(clinic);
+            return new ChangePlanResponse(false, null, toSubscriptionResponse(clinic, subscription));
+        }
+
+        // กรณีที่ 2: มีการสมัครสมาชิกกับ Stripe อยู่แล้ว (กำลังใช้แพ็กเกจเสียเงิน) — สลับแพ็กเกจได้ทันที
+        // Stripe จะคิดเงินส่วนต่างตามสัดส่วนวันที่เหลือให้อัตโนมัติ (proration)
+        if (subscription.getStripeSubscriptionId() != null && !subscription.getStripeSubscriptionId().isBlank()) {
+            if (!stripeConfig.isConfigured()) {
+                throw new BusinessRuleException("STRIPE_NOT_CONFIGURED", "ระบบยังไม่ได้ตั้งค่าการชำระเงิน");
+            }
+            updateStripeSubscriptionPrice(subscription.getStripeSubscriptionId(), newPlan.getStripePriceId());
+            subscription.changePlan(newPlan);
+            subscriptions.save(subscription);
+            return new ChangePlanResponse(false, null, toSubscriptionResponse(clinic, subscription));
+        }
+
+        // กรณีที่ 3: กำลังใช้แพ็กเกจฟรีอยู่ อัปเกรดเป็นแพ็กเกจเสียเงินครั้งแรก — ต้องไปกรอกบัตรที่ Stripe ก่อน
+        if (!stripeConfig.isConfigured()) {
+            // ยังไม่ตั้งค่า Stripe ไว้ — อนุโลมให้เปลี่ยนแพ็กเกจได้เลยโดยไม่เก็บเงินจริง (สำหรับสาธิต/ทดสอบ)
+            subscription.changePlan(newPlan);
+            subscription.renewPeriod(LocalDateTime.now(), LocalDateTime.now().plusMonths(1));
+            subscriptions.save(subscription);
+            return new ChangePlanResponse(false, null, toSubscriptionResponse(clinic, subscription));
+        }
+        String checkoutUrl = createCheckoutSession(clinic, newPlan);
+        return new ChangePlanResponse(true, checkoutUrl, null);
+    }
+
+    @Override
+    public SubscriptionResponse cancelMySubscription() {
+        Long clinicId = tenantGuard.requireCurrentClinicId();
+        Clinic clinic = loadClinic(clinicId);
+        Subscription subscription = loadSubscription(clinicId);
+
+        if (subscription.getPlan().isFree()) {
+            throw new BusinessRuleException("ALREADY_FREE", "คลินิกนี้ใช้แพ็กเกจฟรีอยู่แล้ว ไม่มีอะไรต้องยกเลิก");
+        }
+        if (subscription.getStripeSubscriptionId() != null && stripeConfig.isConfigured()) {
+            try {
+                com.stripe.model.Subscription stripeSub =
+                        com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+                stripeSub.update(SubscriptionUpdateParams.builder().setCancelAtPeriodEnd(true).build());
+            } catch (StripeException e) {
+                throw new BusinessRuleException("STRIPE_ERROR", "ไม่สามารถยกเลิกการสมัครสมาชิกได้: " + e.getMessage());
+            }
+        }
+        subscription.requestCancelAtPeriodEnd();
+        subscriptions.save(subscription);
+        return toSubscriptionResponse(clinic, subscription);
+    }
+
+    @Override
+    public SubscriptionResponse reactivateMySubscription() {
+        Long clinicId = tenantGuard.requireCurrentClinicId();
+        Clinic clinic = loadClinic(clinicId);
+        Subscription subscription = loadSubscription(clinicId);
+
+        if (!subscription.isCancelAtPeriodEnd()) {
+            throw new BusinessRuleException("NOT_CANCELING", "แพ็กเกจนี้ไม่ได้อยู่ระหว่างรอยกเลิก");
+        }
+        if (subscription.getStripeSubscriptionId() != null && stripeConfig.isConfigured()) {
+            try {
+                com.stripe.model.Subscription stripeSub =
+                        com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId());
+                stripeSub.update(SubscriptionUpdateParams.builder().setCancelAtPeriodEnd(false).build());
+            } catch (StripeException e) {
+                throw new BusinessRuleException("STRIPE_ERROR", "ไม่สามารถยกเลิกคำขอยกเลิกได้: " + e.getMessage());
+            }
+        }
+        subscription.cancelTheCancellation();
+        subscriptions.save(subscription);
+        return toSubscriptionResponse(clinic, subscription);
+    }
+
+    private void cancelStripeSubscriptionIfAny(Subscription subscription) {
+        if (subscription.getStripeSubscriptionId() == null || !stripeConfig.isConfigured()) return;
+        try {
+            com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId()).cancel();
+        } catch (StripeException e) {
+            throw new BusinessRuleException("STRIPE_ERROR", "ไม่สามารถยกเลิกการสมัครสมาชิกเดิมได้: " + e.getMessage());
+        }
+    }
+
+    /** เปลี่ยนราคาของการสมัครสมาชิกที่มีอยู่แล้วบน Stripe (ใช้ตอนอัปเกรด/ดาวน์เกรดระหว่างแพ็กเกจเสียเงิน) */
+    private void updateStripeSubscriptionPrice(String stripeSubscriptionId, String newPriceId) {
+        try {
+            com.stripe.model.Subscription stripeSub = com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
+            String itemId = stripeSub.getItems().getData().get(0).getId();
+            SubscriptionUpdateParams params = SubscriptionUpdateParams.builder()
+                    .addItem(SubscriptionUpdateParams.Item.builder()
+                            .setId(itemId)
+                            .setPrice(newPriceId)
+                            .build())
+                    .setProrationBehavior(SubscriptionUpdateParams.ProrationBehavior.CREATE_PRORATIONS)
+                    .build();
+            stripeSub.update(params);
+        } catch (StripeException e) {
+            throw new BusinessRuleException("STRIPE_ERROR", "ไม่สามารถเปลี่ยนแพ็กเกจได้: " + e.getMessage());
+        }
+    }
+
+    private Clinic loadClinic(Long clinicId) {
+        return clinics.findById(clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบคลินิก id=" + clinicId));
+    }
+
+    private Subscription loadSubscription(Long clinicId) {
+        return subscriptions.findByClinicId(clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("ไม่พบการสมัครสมาชิกของคลินิก id=" + clinicId));
+    }
+
+    private SubscriptionResponse toSubscriptionResponse(Clinic clinic, Subscription sub) {
+        Plan plan = sub.getPlan();
+        return new SubscriptionResponse(
+                clinic.getId(), clinic.getName(), clinic.getStatus().name(),
+                plan.getCode(), plan.getName(), plan.getPriceMonthlyThb(),
+                plan.getMaxDoctors(), plan.getMaxActivePatients(),
+                sub.getStatus().name(), sub.getStatus().getLabel(),
+                sub.getCurrentPeriodStart(), sub.getCurrentPeriodEnd(),
+                sub.isCancelAtPeriodEnd(),
+                sub.getStripeSubscriptionId() != null && !sub.getStripeSubscriptionId().isBlank());
     }
 
     @Override

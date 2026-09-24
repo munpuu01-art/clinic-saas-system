@@ -15,6 +15,12 @@ public interface ClinicService {
     ClinicResponse setClinicStatus(Long clinicId, String status);
     List<PlanResponse> listAllPlansForAdmin();
 
+    // ---------- ADMIN ของคลินิกตัวเอง (หน้า "แพ็กเกจของฉัน") ----------
+    SubscriptionResponse getMySubscription();
+    ChangePlanResponse changeMyPlan(ChangePlanRequest request);
+    SubscriptionResponse cancelMySubscription();
+    SubscriptionResponse reactivateMySubscription();
+
     // ---------- เรียกจาก Webhook handler ----------
     void activateSubscriptionFromCheckout(Long clinicId, String stripeCustomerId,
                                           String stripeSubscriptionId,

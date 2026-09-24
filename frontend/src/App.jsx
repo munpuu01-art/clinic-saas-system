@@ -9,6 +9,7 @@ import Doctors from './pages/Doctors.jsx'
 import Appointments from './pages/Appointments.jsx'
 import QueueBoard from './pages/QueueBoard.jsx'
 import Accounts from './pages/Accounts.jsx'
+import MySubscription from './pages/MySubscription.jsx'
 import MyAppointments from './pages/portal/MyAppointments.jsx'
 import BookAppointment from './pages/portal/BookAppointment.jsx'
 import MyRecords from './pages/portal/MyRecords.jsx'
@@ -98,6 +99,8 @@ export default function App() {
         <RequireRole roles={STAFF_ROLES}><Shell><Doctors /></Shell></RequireRole>} />
       <Route path="/accounts" element={
         <RequireRole roles={['ADMIN']}><Shell><Accounts /></Shell></RequireRole>} />
+      <Route path="/billing" element={
+        <RequireRole roles={['ADMIN']}><Shell><MySubscription /></Shell></RequireRole>} />
 
       {/* ---------- ผู้ดูแลระบบ SaaS ---------- */}
       <Route path="/super-admin" element={

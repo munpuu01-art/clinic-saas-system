@@ -11,7 +11,8 @@ export const MENU_BY_ROLE = {
     { to: '/queue', label: 'คิวหน้าห้องตรวจ' },
     { to: '/patients', label: 'ผู้ป่วย' },
     { to: '/doctors', label: 'แพทย์และตารางออกตรวจ' },
-    { to: '/accounts', label: 'บัญชีผู้ใช้' }
+    { to: '/accounts', label: 'บัญชีผู้ใช้' },
+    { to: '/billing', label: 'แพ็กเกจของฉัน' }
   ],
   STAFF: [
     { to: '/dashboard', label: 'ภาพรวมวันนี้' },

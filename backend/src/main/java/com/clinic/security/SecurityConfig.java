@@ -83,6 +83,7 @@ public class SecurityConfig {
 
                 // ---------- งานผู้ดูแลระบบของคลินิก ----------
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/billing/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/doctors/**").hasAnyRole("ADMIN", "DOCTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/doctors/**").hasAnyRole("ADMIN", "DOCTOR")
 

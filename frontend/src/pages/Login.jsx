@@ -71,21 +71,33 @@ export default function Login() {
     <div className="auth-shell">
       <section className="auth-side">
         <div className="auth-brand">
-          <strong>คลินิกใจดี</strong>
-          <span>ระบบนัดหมายและจัดคิว</span>
+          <strong>ระบบ SaaS จัดการคลินิก</strong>
+          <span>รองรับหลายคลินิกในระบบเดียว</span>
         </div>
         <p className="auth-tagline">
           จองนัดกับแพทย์ ตรวจสอบคิวหน้าห้องตรวจ และดูประวัติการรักษาของคุณได้ในที่เดียว
         </p>
         <div className="auth-demo">
-          <div className="auth-demo-title">บัญชีสำหรับทดลองใช้ (โปรไฟล์ dev · คลินิกใจดี · jaidee-clinic)</div>
+          <div className="auth-demo-title">บัญชีสำหรับทดลองใช้ (โปรไฟล์ dev · มี 4 คลินิกตัวอย่าง)</div>
           <ul>
-            <li><code>superadmin</code> — ผู้ดูแลระบบ SaaS (ทุกคลินิก)</li>
-            <li><code>admin</code> — ผู้ดูแลคลินิก</li>
-            <li><code>staff</code> — เจ้าหน้าที่เวชระเบียน</li>
-            <li><code>doctor</code> — แพทย์</li>
-            <li><code>piya</code> — ผู้ป่วย</li>
+            <li><code>superadmin</code> — ผู้ดูแลระบบ SaaS (เห็นทุกคลินิก)</li>
           </ul>
+          <div className="auth-demo-clinic">
+            <strong>คลินิกใจดี</strong> <span>PRO · ใช้งานปกติ</span>
+            <div><code>admin</code> · <code>staff</code> · <code>doctor</code> · <code>piya</code></div>
+          </div>
+          <div className="auth-demo-clinic">
+            <strong>คลินิกหมอดี</strong> <span>BASIC · ใช้งานปกติ</span>
+            <div><code>mordee_admin</code> · <code>mordee_staff</code> · <code>mordee_doctor</code></div>
+          </div>
+          <div className="auth-demo-clinic">
+            <strong>คลินิกรักษ์สุขภาพ</strong> <span>FREE · ทดลองใช้งาน</span>
+            <div><code>raksuk_admin</code> · <code>raksuk_staff</code> · <code>raksuk_doctor</code></div>
+          </div>
+          <div className="auth-demo-clinic">
+            <strong>คลินิกยิ้มสวย</strong> <span>ถูกระงับ (สาธิต)</span>
+            <div><code>yimsuay_admin</code> — ล็อกอินไม่ได้โดยตั้งใจ</div>
+          </div>
           <div className="auth-demo-note">รหัสผ่านทุกบัญชี: <code>Clinic@123</code></div>
         </div>
         <p className="auth-owner-link">

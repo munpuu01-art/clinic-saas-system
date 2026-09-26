@@ -22,7 +22,9 @@ import java.time.LocalTime;
  */
 @Entity
 @Table(name = "appointment",
-       uniqueConstraints = @UniqueConstraint(name = "uk_appointment_no", columnNames = "appointment_no"),
+       // เลขที่นัดไม่ซ้ำ "ภายในคลินิกเดียวกัน" เท่านั้น — คนละคลินิกออกเลข AP-...-001 ซ้ำกันได้
+       // (DocumentNumberGenerator นับเลขรันแยกตามคลินิกโดยตั้งใจ)
+       uniqueConstraints = @UniqueConstraint(name = "uk_appointment_no", columnNames = {"clinic_id", "appointment_no"}),
        indexes = {
            @Index(name = "idx_appt_doctor_date", columnList = "doctor_id, appointment_date"),
            @Index(name = "idx_appt_patient_date", columnList = "patient_id, appointment_date")

@@ -9,10 +9,12 @@ import java.util.List;
 
 /** แผนก/ความเชี่ยวชาญ เช่น อายุรกรรม ทันตกรรม */
 @Entity
-@Table(name = "specialty")
+// รหัสแผนกไม่ซ้ำ "ภายในคลินิกเดียวกัน" เท่านั้น — คนละคลินิกใช้รหัส DEN/INT ซ้ำกันได้ตามปกติ
+@Table(name = "specialty",
+       uniqueConstraints = @UniqueConstraint(name = "uk_specialty_code", columnNames = {"clinic_id", "code"}))
 public class Specialty extends TenantEntity {
 
-    @Column(name = "code", nullable = false, unique = true, length = 20)
+    @Column(name = "code", nullable = false, length = 20)
     private String code;
 
     @Column(name = "name", nullable = false, length = 100)

@@ -13,10 +13,12 @@ import java.util.List;
 
 /** ใบแจ้งค่าบริการของการเข้าตรวจ 1 ครั้ง — implements Billable */
 @Entity
-@Table(name = "invoice")
+// เลขที่ใบแจ้งหนี้ไม่ซ้ำ "ภายในคลินิกเดียวกัน" เท่านั้น เช่นเดียวกับเลขที่นัด (ดู Appointment)
+@Table(name = "invoice",
+       uniqueConstraints = @UniqueConstraint(name = "uk_invoice_no", columnNames = {"clinic_id", "invoice_no"}))
 public class Invoice extends TenantEntity implements Billable {
 
-    @Column(name = "invoice_no", nullable = false, unique = true, length = 20)
+    @Column(name = "invoice_no", nullable = false, length = 20)
     private String invoiceNo;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)

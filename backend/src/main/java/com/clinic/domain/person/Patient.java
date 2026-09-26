@@ -20,7 +20,10 @@ import java.util.List;
 public class Patient extends Person {
 
     /** HN (Hospital Number) เช่น HN-2026-0001 */
-    @Column(name = "hn", nullable = false, unique = true, length = 20)
+    // HN ไม่ซ้ำ "ภายในคลินิกเดียวกัน" เท่านั้น โดยตั้งใจ (แต่ละคลินิกนับเลขรัน HN-2026-0001 ของตัวเอง)
+    // หมายเหตุ: Patient สืบทอดผ่าน JOINED inheritance จาก Person ซึ่งเก็บ clinic_id ไว้คนละตาราง
+    // จึงบังคับ composite unique (clinic_id, hn) ที่ระดับ DB ไม่ได้ตรง ๆ — พึ่งพา service layer แทน
+    @Column(name = "hn", nullable = false, length = 20)
     private String hn;
 
     @Embedded

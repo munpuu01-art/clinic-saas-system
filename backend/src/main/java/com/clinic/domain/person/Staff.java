@@ -13,7 +13,8 @@ import java.time.LocalDate;
 @PrimaryKeyJoinColumn(name = "person_id")
 public class Staff extends Person {
 
-    @Column(name = "staff_code", nullable = false, unique = true, length = 20)
+    // รหัสพนักงานไม่ซ้ำ "ภายในคลินิกเดียวกัน" เท่านั้น (เหตุผลเดียวกับ Patient.hn ด้านบน)
+    @Column(name = "staff_code", nullable = false, length = 20)
     private String staffCode;
 
     @Enumerated(EnumType.STRING)

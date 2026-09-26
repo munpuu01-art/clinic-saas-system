@@ -1,3 +1,5 @@
+https://clinic-saas-system-gamma.vercel.app/super-admin
+https://clinic-saas-system-gamma.vercel.app/login
 # Clinic Appointment System — ระบบนัดหมายและจัดคิวคลินิก
 
 โปรเจกต์ตัวอย่าง **Full-Stack Web Application ที่ออกแบบด้วยหลัก OOP อย่างเต็มรูปแบบ**

@@ -14,23 +14,36 @@ export function Card({ title, actions, children }) {
   )
 }
 
-export function Stat({ label, value, tone }) {
+/** tone: 'violet' | 'blue' | 'cyan' | 'green' | 'amber' | 'red' — หรือค่าสี CSS แบบเดิมก็ยังใช้ได้ */
+const STAT_TONES = ['violet', 'blue', 'cyan', 'green', 'amber', 'red']
+
+export function Stat({ label, value, tone, hint }) {
+  const named = STAT_TONES.includes(tone)
   return (
-    <div className="stat">
+    <div className={`stat ${named ? `tone-${tone}` : ''}`}>
       <div className="label">{label}</div>
-      <div className="value" style={tone ? { color: tone } : undefined}>{value}</div>
+      <div className="value numeric" style={tone && !named ? { color: tone } : undefined}>{value}</div>
+      {hint && <div className="stat-hint">{hint}</div>}
     </div>
   )
 }
 
-const STATUS_TONE = {
-  REQUESTED: '', CONFIRMED: 'pine', CHECKED_IN: 'amber', IN_PROGRESS: 'amber',
-  COMPLETED: 'pine', CANCELLED: 'alert', NO_SHOW: 'alert',
-  WAITING: '', CALLED: 'amber', SERVING: 'amber', DONE: 'pine', SKIPPED: 'alert'
+/** สีของป้ายสถานะ — ใช้ร่วมกันทั้งนัดหมาย คิว คลินิก และแพ็กเกจ */
+export const PILL_TONE = {
+  // นัดหมาย
+  REQUESTED: 'violet', CONFIRMED: 'blue', CHECKED_IN: 'cyan', IN_PROGRESS: 'amber',
+  COMPLETED: 'green', CANCELLED: 'gray', NO_SHOW: 'red',
+  // บัตรคิว
+  WAITING: 'gray', CALLED: 'amber', SERVING: 'blue', DONE: 'green', SKIPPED: 'red',
+  // ระดับความสำคัญของคิว
+  EMERGENCY: 'red', ELDERLY: 'amber', APPOINTMENT: 'blue', NORMAL: 'gray',
+  // คลินิก / แพ็กเกจ
+  TRIALING: 'violet', ACTIVE: 'green', PAST_DUE: 'amber', SUSPENDED: 'red',
+  CANCELED: 'gray', INCOMPLETE: 'amber'
 }
 
 export function Pill({ status, label }) {
-  return <span className={`pill ${STATUS_TONE[status] || ''}`}>{label || status}</span>
+  return <span className={`pill ${PILL_TONE[status] || ''}`}>{label || status}</span>
 }
 
 export function Field({ label, children }) {

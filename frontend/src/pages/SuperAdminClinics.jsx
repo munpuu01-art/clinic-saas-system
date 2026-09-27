@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { SuperAdminApi } from '../api/ApiClient.js'
-import { Card, Empty, Field, Modal, Notice, Pill } from '../components/ui.jsx'
+import { Card, Empty, Field, Modal, Notice, Pill, Stat } from '../components/ui.jsx'
+import { Icon } from '../components/icons.jsx'
 
 const STATUS_LABEL = {
   TRIALING: 'ทดลองใช้งาน', ACTIVE: 'ใช้งานปกติ', PAST_DUE: 'ค้างชำระเงิน',
@@ -18,6 +19,8 @@ export default function SuperAdminClinics() {
   const [form, setForm] = useState(null)
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('ALL')
 
   const load = () => SuperAdminApi.clinics().then(setClinics).catch(setError)
 
@@ -52,6 +55,21 @@ export default function SuperAdminClinics() {
     suspended: clinics.filter((c) => c.status === 'SUSPENDED' || c.status === 'CANCELED').length
   }
 
+  const FILTERS = [
+    { key: 'ALL', label: 'ทั้งหมด' },
+    { key: 'ACTIVE', label: 'ใช้งานปกติ' },
+    { key: 'TRIALING', label: 'ทดลองใช้' },
+    { key: 'PAST_DUE', label: 'ค้างชำระ' },
+    { key: 'SUSPENDED', label: 'ระงับ' },
+    { key: 'CANCELED', label: 'ยกเลิก' }
+  ]
+  const countOf = (key) => key === 'ALL' ? clinics.length : clinics.filter((c) => c.status === key).length
+  const q = query.trim().toLowerCase()
+  const visible = clinics.filter((c) =>
+    (filter === 'ALL' || c.status === filter) &&
+    (!q || [c.name, c.slug, c.contactEmail, c.planName].some((v) => v && v.toLowerCase().includes(q)))
+  )
+
   return (
     <>
       <div className="page-head">
@@ -65,14 +83,29 @@ export default function SuperAdminClinics() {
       <Notice error={error} message={message} onDismiss={() => { setError(null); setMessage(null) }} />
 
       <div className="stat-row">
-        <div className="stat"><div className="label">คลินิกทั้งหมด</div><div className="value">{summary.total}</div></div>
-        <div className="stat"><div className="label">ใช้งานปกติ</div><div className="value">{summary.active}</div></div>
-        <div className="stat"><div className="label">ทดลองใช้งาน</div><div className="value">{summary.trialing}</div></div>
-        <div className="stat"><div className="label">ระงับ/ยกเลิก</div><div className="value">{summary.suspended}</div></div>
+        <Stat label="คลินิกทั้งหมด" value={summary.total} />
+        <Stat label="ใช้งานปกติ" value={summary.active} tone="green" />
+        <Stat label="ทดลองใช้งาน" value={summary.trialing} tone="violet" />
+        <Stat label="ระงับ/ยกเลิก" value={summary.suspended} tone="red" />
       </div>
 
-      <Card title={`รายชื่อคลินิก (${clinics.length})`}>
-        {clinics.length === 0 ? <Empty>ยังไม่มีคลินิกในระบบ</Empty> : (
+      <Card title="รายชื่อคลินิก">
+        <div className="toolbar">
+          <label className="search" aria-label="ค้นหาคลินิก">
+            <Icon.search />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาชื่อ รหัส อีเมล หรือแพ็กเกจ" />
+          </label>
+          <div className="segmented" role="tablist">
+            {FILTERS.map((f) => (
+              <button key={f.key} role="tab" aria-selected={filter === f.key}
+                className={filter === f.key ? 'active' : ''} onClick={() => setFilter(f.key)}>
+                {f.label}<span className="count">{countOf(f.key)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        {clinics.length === 0 ? <Empty>ยังไม่มีคลินิกในระบบ กด "เพิ่มคลินิกใหม่" เพื่อเริ่มต้น</Empty>
+          : visible.length === 0 ? <Empty>ไม่พบคลินิกที่ตรงกับการค้นหา</Empty> : (
           <div className="table-wrap">
             <table>
               <thead>
@@ -82,10 +115,10 @@ export default function SuperAdminClinics() {
                 </tr>
               </thead>
               <tbody>
-                {clinics.map((c) => (
+                {visible.map((c) => (
                   <tr key={c.id}>
-                    <td>{c.name}<span className="sub"> {c.contactEmail}</span></td>
-                    <td className="numeric">{c.slug}</td>
+                    <td><div className="clinic-cell"><strong>{c.name}</strong><span>{c.contactEmail}</span></div></td>
+                    <td><span className="slug">{c.slug}</span></td>
                     <td>{c.planName || '-'}</td>
                     <td><Pill status={c.status} label={STATUS_LABEL[c.status] || c.statusLabel} /></td>
                     <td className="numeric">{c.doctorCount}</td>

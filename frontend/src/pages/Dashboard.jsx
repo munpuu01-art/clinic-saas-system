@@ -18,7 +18,7 @@ export default function Dashboard() {
           <h1>ภาพรวมการให้บริการ</h1>
           <p>ติดตามนัดหมายและคิวของทั้งคลินิกในวันเดียวกัน</p>
         </div>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 180 }} />
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
 
       <Notice error={error} onDismiss={() => setError(null)} />
@@ -29,10 +29,10 @@ export default function Dashboard() {
             <Stat label="นัดหมายทั้งหมด" value={data.totalAppointments} />
             <Stat label="ยืนยันแล้ว" value={data.confirmed} />
             <Stat label="เช็คอินแล้ว" value={data.checkedIn} />
-            <Stat label="รอเรียกคิว" value={data.waitingInQueue} tone="var(--amber)" />
-            <Stat label="ตรวจเสร็จ" value={data.completed} tone="var(--pine)" />
+            <Stat label="รอเรียกคิว" value={data.waitingInQueue} tone="amber" />
+            <Stat label="ตรวจเสร็จ" value={data.completed} tone="green" />
             <Stat label="ยกเลิก" value={data.cancelled} />
-            <Stat label="ไม่มาตามนัด" value={data.noShow} tone="var(--alert)" />
+            <Stat label="ไม่มาตามนัด" value={data.noShow} tone="red" />
           </div>
 
           <Card title="ภาระงานรายแพทย์">

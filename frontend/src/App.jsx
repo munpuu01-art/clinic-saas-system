@@ -1,7 +1,9 @@
-import React from 'react'
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext.jsx'
 import RequireRole from './auth/RequireRole.jsx'
+import { Icon, ROUTE_ICON } from './components/icons.jsx'
+import { PILL_TONE } from './components/ui.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Patients from './pages/Patients.jsx'
@@ -20,41 +22,94 @@ import SuperAdminClinics from './pages/SuperAdminClinics.jsx'
 
 const STAFF_ROLES = ['ADMIN', 'STAFF', 'DOCTOR']
 
+const CLINIC_STATUS_LABEL = {
+  TRIALING: 'ทดลองใช้งาน', ACTIVE: 'ใช้งานปกติ', PAST_DUE: 'ค้างชำระเงิน',
+  SUSPENDED: 'ถูกระงับ', CANCELED: 'ยกเลิกแล้ว'
+}
+
+function initials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
+}
+
 /** โครงหน้าจอหลังล็อกอิน — เมนูมาจากบทบาทของผู้ใช้ */
 function Shell({ children }) {
   const { session, menu, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [navOpen, setNavOpen] = useState(false)
+
+  // ปิดเมนูบนมือถือทุกครั้งที่เปลี่ยนหน้า
+  useEffect(() => { setNavOpen(false) }, [location.pathname])
 
   const signOut = () => {
     logout()
     navigate('/login', { replace: true })
   }
 
+  const isSuper = session?.role === 'SUPER_ADMIN'
+  const current = menu.find((m) => m.to === location.pathname)
+  const status = session?.clinicStatus
+  const todayLabel = new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })
+
   return (
-    <div className="shell">
-      <aside className="sidebar">
+    <div className={`shell ${navOpen ? 'nav-open' : ''}`}>
+      <aside className="sidebar" aria-label="เมนูหลัก">
         <div className="brand">
-          <strong>{session?.role === 'SUPER_ADMIN' ? 'ระบบ SaaS คลินิก' : (session?.clinicName || 'คลินิกใจดี')}</strong>
-          <span>
-            {session?.role === 'SUPER_ADMIN' ? 'แผงควบคุมผู้ดูแลระบบ'
-              : session?.role === 'PATIENT' ? 'พอร์ทัลผู้ป่วย' : 'ระบบนัดหมายและคิว'}
-          </span>
+          <span className="brand-mark"><Icon.pulse /></span>
+          <div className="brand-text">
+            <strong>{isSuper ? 'Clinic SaaS' : (session?.clinicName || 'คลินิก')}</strong>
+            <span>
+              {isSuper ? 'แผงควบคุมแพลตฟอร์ม'
+                : session?.role === 'PATIENT' ? 'พอร์ทัลผู้ป่วย' : 'ระบบนัดหมายและคิว'}
+            </span>
+          </div>
+          <button className="nav-close" onClick={() => setNavOpen(false)} aria-label="ปิดเมนู"><Icon.close /></button>
         </div>
 
         <nav className="nav">
-          {menu.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/portal'}>{item.label}</NavLink>
-          ))}
+          {menu.map((item) => {
+            const RouteIcon = ROUTE_ICON[item.to]
+            return (
+              <NavLink key={item.to} to={item.to} end={item.to === '/portal'}>
+                {RouteIcon && <RouteIcon />}
+                <span>{item.label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         <div className="who">
-          <div className="who-name">{session?.displayName}</div>
-          <div className="who-role">{session?.roleLabel}{session?.hn ? ` · ${session.hn}` : ''}</div>
-          <button className="signout" onClick={signOut}>ออกจากระบบ</button>
+          <span className="avatar">{initials(session?.displayName)}</span>
+          <div className="who-text">
+            <div className="who-name">{session?.displayName}</div>
+            <div className="who-role">{session?.roleLabel}{session?.hn ? ` · ${session.hn}` : ''}</div>
+          </div>
+          <button className="signout" onClick={signOut} aria-label="ออกจากระบบ" title="ออกจากระบบ">
+            <Icon.logout />
+          </button>
         </div>
       </aside>
 
-      <main className="content">{children}</main>
+      <div className="scrim" onClick={() => setNavOpen(false)} aria-hidden="true" />
+
+      <div className="main">
+        <header className="topbar">
+          <button className="nav-toggle" onClick={() => setNavOpen(true)} aria-label="เปิดเมนู"><Icon.menu /></button>
+          <div className="crumb">
+            {!isSuper && session?.clinicName && <span className="crumb-clinic">{session.clinicName}</span>}
+            <span className="crumb-page">{current?.label || ''}</span>
+          </div>
+          <div className="topbar-side">
+            {status && !isSuper && (
+              <span className={`pill ${PILL_TONE[status] || ''}`}>{CLINIC_STATUS_LABEL[status] || status}</span>
+            )}
+            <span className="topbar-date">{todayLabel}</span>
+          </div>
+        </header>
+        <main className="content">{children}</main>
+      </div>
     </div>
   )
 }
@@ -62,7 +117,7 @@ function Shell({ children }) {
 /** ส่งผู้ใช้ไปยังหน้าแรกที่เหมาะกับบทบาทของตน */
 function HomeRedirect() {
   const { isAuthenticated, role, checking } = useAuth()
-  if (checking) return <div className="empty">กำลังตรวจสอบสิทธิ์…</div>
+  if (checking) return <div className="boot">กำลังตรวจสอบสิทธิ์…</div>
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <Navigate to={landingPathFor(role)} replace />
 }

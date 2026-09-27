@@ -138,7 +138,7 @@ export default function QueueBoard() {
                     <td className="numeric">{index + 1}</td>
                     <td className="numeric strong">{t.ticketNo}</td>
                     <td>{t.patientName}<span className="sub"> {t.hn}</span></td>
-                    <td><Pill status={t.priority === 'EMERGENCY' ? 'CANCELLED' : 'CALLED'} label={t.priorityLabel} /></td>
+                    <td><Pill status={t.priority} label={t.priorityLabel} /></td>
                     <td><Pill status={t.status} label={t.statusLabel} /></td>
                     <td className="numeric">{t.waitingMinutes} นาที</td>
                     <td className="numeric">{t.appointmentId ? 'มีนัด' : 'Walk-in'}</td>

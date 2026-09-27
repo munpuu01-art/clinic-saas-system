@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { BillingApi, ClinicApi } from '../api/ApiClient.js'
 import { Card, Empty, Notice, Pill } from '../components/ui.jsx'
+import { Icon } from '../components/icons.jsx'
 
 const STATUS_LABEL = {
   TRIALING: 'ทดลองใช้งาน', ACTIVE: 'ใช้งานปกติ', PAST_DUE: 'ค้างชำระเงิน',
@@ -103,7 +104,7 @@ export default function MySubscription() {
               <div className="sub-plan-price">
                 {Number(subscription.planPriceMonthlyThb) === 0
                   ? 'ฟรี'
-                  : `${Number(subscription.planPriceMonthlyThb).toLocaleString()} บาท/เดือน`}
+                  : `฿${Number(subscription.planPriceMonthlyThb).toLocaleString()} ต่อเดือน`}
               </div>
             </div>
             <div className="sub-status">
@@ -140,26 +141,31 @@ export default function MySubscription() {
           <div className="plan-grid">
             {plans.map((p) => {
               const isCurrent = subscription && p.code === subscription.planCode
+              const isFeatured = p.code === 'PRO'
+              const price = Number(p.priceMonthlyThb)
               return (
-                <div key={p.code} className={`plan-tile ${isCurrent ? 'current' : ''}`}>
+                <div key={p.code} className={`plan-tile ${isCurrent ? 'current' : ''} ${isFeatured ? 'featured' : ''}`}>
+                  {isFeatured && !isCurrent && <span className="plan-tile-ribbon">แนะนำ</span>}
                   <div className="plan-tile-head">
                     <strong>{p.name}</strong>
-                    <span>{Number(p.priceMonthlyThb) === 0 ? 'ฟรี' : `${Number(p.priceMonthlyThb).toLocaleString()} บาท/เดือน`}</span>
+                    <span className="numeric">
+                      {price === 0 ? 'ฟรี' : <>฿{price.toLocaleString()}<small>/เดือน</small></>}
+                    </span>
                   </div>
                   <p>{p.description}</p>
                   <ul>
-                    <li>แพทย์สูงสุด: {p.maxDoctors ?? 'ไม่จำกัด'}</li>
-                    <li>ผู้ป่วยสูงสุด/เดือน: {p.maxActivePatients ?? 'ไม่จำกัด'}</li>
+                    <li><Icon.check />แพทย์สูงสุด {p.maxDoctors ?? 'ไม่จำกัด'}{p.maxDoctors ? ' ท่าน' : ''}</li>
+                    <li><Icon.check />ผู้ป่วย {p.maxActivePatients ?? 'ไม่จำกัด'}{p.maxActivePatients ? ' รายต่อเดือน' : ''}</li>
                   </ul>
                   {isCurrent ? (
                     <span className="plan-tile-current-badge">แพ็กเกจปัจจุบัน</span>
                   ) : (
                     <button
-                      className="primary block"
+                      className={`block ${isFeatured ? 'primary' : ''}`}
                       disabled={busyPlan === p.code}
                       onClick={() => changePlan(p.code)}
                     >
-                      {busyPlan === p.code ? 'กำลังดำเนินการ…' : 'เปลี่ยนเป็นแพ็กเกจนี้'}
+                      {busyPlan === p.code ? 'กำลังดำเนินการ…' : `เปลี่ยนเป็น ${p.name}`}
                     </button>
                   )}
                 </div>

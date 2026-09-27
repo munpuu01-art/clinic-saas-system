@@ -73,6 +73,7 @@ public class SecurityConfig {
                 // (Webhook ไม่มี JWT แต่ตรวจสอบด้วยลายเซ็นของ Stripe เองในตัว Controller)
                 .requestMatchers(HttpMethod.POST, "/api/clinics/register").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/plans").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
                 .requestMatchers("/api/webhooks/**").permitAll()
 
                 // ---------- ผู้ดูแลระบบ SaaS (เจ้าของแพลตฟอร์ม ไม่สังกัดคลินิกใด) ----------

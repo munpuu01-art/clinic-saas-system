@@ -4,7 +4,7 @@
 -- ทุกตารางที่เป็นข้อมูลของคลินิก (ยกเว้น clinic, plan เอง) มีคอลัมน์ clinic_id กำกับ
 -- ============================================================
 
-DROP TABLE IF EXISTS subscription, plan, user_account, payment, invoice_item, invoice,
+DROP TABLE IF EXISTS platform_payment, subscription, plan, user_account, payment, invoice_item, invoice,
                      medical_record, queue_ticket, appointment, doctor_leave, doctor_schedule,
                      staff, doctor, patient, person, specialty, clinic CASCADE;
 
@@ -50,6 +50,22 @@ CREATE TABLE subscription (
     created_at             TIMESTAMP NOT NULL DEFAULT now(),
     updated_at             TIMESTAMP
 );
+
+-- ---------- รายรับของแพลตฟอร์ม: เงินที่คลินิกจ่ายค่าบริการเข้ามา (Stripe หรือบันทึกเอง) ----------
+-- คนละเรื่องกับตาราง payment ซึ่งเป็นเงินที่ผู้ป่วยจ่ายให้คลินิก
+CREATE TABLE platform_payment (
+    id          BIGSERIAL PRIMARY KEY,
+    clinic_id   BIGINT        NOT NULL REFERENCES clinic(id) ON DELETE CASCADE,
+    plan_code   VARCHAR(20),                    -- แพ็กเกจ ณ วันที่จ่าย (เก็บเป็นข้อความ ไม่เปลี่ยนตามภายหลัง)
+    amount_thb  NUMERIC(12,2) NOT NULL CHECK (amount_thb > 0),
+    paid_at     TIMESTAMP     NOT NULL,
+    method      VARCHAR(20)   NOT NULL,         -- STRIPE|BANK_TRANSFER|CASH
+    reference   VARCHAR(80)   UNIQUE,           -- เลข invoice ของ Stripe (in_...) กันบันทึกซ้ำ
+    note        VARCHAR(255),
+    created_at  TIMESTAMP     NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMP
+);
+CREATE INDEX idx_platform_payment_clinic ON platform_payment(clinic_id);
 CREATE INDEX idx_subscription_stripe_sub ON subscription(stripe_subscription_id);
 CREATE INDEX idx_subscription_stripe_cus ON subscription(stripe_customer_id);
 

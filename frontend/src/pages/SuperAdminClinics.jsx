@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { SuperAdminApi } from '../api/ApiClient.js'
-import { Card, Empty, Field, Modal, Notice, Pill, Stat } from '../components/ui.jsx'
+import { Card, Empty, Field, Modal, Notice, Pill, Stat, baht, thaiDate, today } from '../components/ui.jsx'
 import { Icon } from '../components/icons.jsx'
 
 const STATUS_LABEL = {
@@ -21,8 +21,43 @@ export default function SuperAdminClinics() {
   const [message, setMessage] = useState(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('ALL')
+  const [revenue, setRevenue] = useState(null)
+  const [payForm, setPayForm] = useState(null)
 
-  const load = () => SuperAdminApi.clinics().then(setClinics).catch(setError)
+  const load = () => {
+    SuperAdminApi.clinics().then(setClinics).catch(setError)
+    SuperAdminApi.revenue().then(setRevenue).catch(setError)
+  }
+
+  // ยอดชำระสะสมของแต่ละคลินิก (clinicId → ข้อมูล)
+  const paidByClinic = Object.fromEntries((revenue?.byClinic || []).map((r) => [r.clinicId, r]))
+
+  const openPayment = (clinic) => setPayForm({
+    clinic,
+    amountThb: clinic.planPriceMonthlyThb > 0 ? String(Number(clinic.planPriceMonthlyThb)) : '',
+    method: 'BANK_TRANSFER',
+    paidDate: today(),
+    note: ''
+  })
+
+  const savePayment = async () => {
+    try {
+      await SuperAdminApi.recordPayment(payForm.clinic.id, {
+        amountThb: Number(payForm.amountThb),
+        method: payForm.method,
+        paidDate: payForm.paidDate || null,
+        note: payForm.note
+      })
+      setMessage(`บันทึกรับเงิน ${baht(payForm.amountThb)} จาก ${payForm.clinic.name} แล้ว`)
+      setPayForm(null)
+      load()
+    } catch (err) { setError(err) }
+  }
+
+  const removePayment = (p) => {
+    if (!window.confirm(`ลบรายการรับเงิน ${baht(p.amountThb)} ของ ${p.clinicName}?`)) return
+    act(() => SuperAdminApi.deletePayment(p.id), 'ลบรายการรับเงินแล้ว')
+  }
 
   useEffect(() => {
     load()
@@ -74,13 +109,28 @@ export default function SuperAdminClinics() {
     <>
       <div className="page-head">
         <div>
-          <h1>คลินิกทั้งหมด</h1>
-          <p>ภาพรวมลูกค้าทุกคลินิกที่สมัครใช้งานระบบ ไม่ว่าจะสมัครเองหรือเพิ่มโดยผู้ดูแล</p>
+          <h1>ภาพรวมแพลตฟอร์ม</h1>
+          <p>รายรับจากค่าบริการ และลูกค้าทุกคลินิกที่สมัครใช้งานระบบ</p>
         </div>
         <button className="primary" onClick={openCreate}>เพิ่มคลินิกใหม่</button>
       </div>
 
       <Notice error={error} message={message} onDismiss={() => { setError(null); setMessage(null) }} />
+
+      <section className="hero hero-revenue">
+        <div>
+          <div className="hero-label">รายรับรวมทั้งหมด</div>
+          <div className="hero-number">{baht(revenue?.totalReceivedThb)}</div>
+          <div className="hero-sub">
+            จากการชำระเงิน {revenue?.paymentCount ?? 0} รายการ · นับเฉพาะเงินที่ได้รับจริง
+          </div>
+        </div>
+        <div className="hero-side">
+          <div><span>รับเดือนนี้</span><strong>{baht(revenue?.receivedThisMonthThb)}</strong></div>
+          <div><span>รายได้ประจำ/เดือน</span><strong>{baht(revenue?.monthlyRecurringThb)}</strong></div>
+          <div><span>คลินิกที่จ่ายเงิน</span><strong>{revenue?.payingClinicCount ?? 0}</strong></div>
+        </div>
+      </section>
 
       <div className="stat-row">
         <Stat label="คลินิกทั้งหมด" value={summary.total} />
@@ -110,26 +160,41 @@ export default function SuperAdminClinics() {
             <table>
               <thead>
                 <tr>
-                  <th>คลินิก</th><th>รหัส</th><th>แพ็กเกจ</th><th>สถานะ</th>
+                  <th>คลินิก</th><th>แพ็กเกจ</th><th className="num">ราคา/เดือน</th>
+                  <th className="num">ชำระแล้วรวม</th><th>สถานะ</th>
                   <th>แพทย์</th><th>ผู้ป่วย</th><th>รอบบิลถัดไป</th><th>การจัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((c) => (
                   <tr key={c.id}>
-                    <td><div className="clinic-cell"><strong>{c.name}</strong><span>{c.contactEmail}</span></div></td>
-                    <td><span className="slug">{c.slug}</span></td>
+                    <td>
+                      <div className="clinic-cell">
+                        <strong>{c.name}</strong>
+                        <span><span className="slug">{c.slug}</span> {c.contactEmail}</span>
+                      </div>
+                    </td>
                     <td>{c.planName || '-'}</td>
+                    <td className="numeric num">
+                      {c.planPriceMonthlyThb == null ? '-' : Number(c.planPriceMonthlyThb) === 0 ? 'ฟรี' : baht(c.planPriceMonthlyThb)}
+                    </td>
+                    <td className="numeric num">
+                      {paidByClinic[c.id]
+                        ? <><strong className="money">{baht(paidByClinic[c.id].totalPaidThb)}</strong>
+                          <span className="sub"> · {paidByClinic[c.id].paymentCount} ครั้ง</span></>
+                        : <span className="sub">ยังไม่มี</span>}
+                    </td>
                     <td><Pill status={c.status} label={STATUS_LABEL[c.status] || c.statusLabel} /></td>
                     <td className="numeric">{c.doctorCount}</td>
                     <td className="numeric">{c.patientCount}</td>
                     <td className="numeric">
                       {c.currentPeriodEnd ? c.currentPeriodEnd.slice(0, 10) : '-'}
                     </td>
-                    <td>
-                      <div className="row wrap">
+                    <td className="actions">
+                      <div className="row">
+                        <button className="ghost" onClick={() => openPayment(c)}>รับเงิน</button>
                         {c.status !== 'ACTIVE' && (
-                          <button className="ghost" onClick={() => act(() => SuperAdminApi.setClinicStatus(c.id, 'ACTIVE'), 'เปิดใช้งานคลินิกแล้ว')}>เปิดใช้งาน</button>
+                          <button className="ghost" onClick={() => act(() => SuperAdminApi.setClinicStatus(c.id, 'ACTIVE'), 'เปิดใช้งานคลินิกแล้ว')}>เปิดใช้</button>
                         )}
                         {c.status !== 'SUSPENDED' && (
                           <button className="ghost danger" onClick={() => act(() => SuperAdminApi.setClinicStatus(c.id, 'SUSPENDED'), 'ระงับคลินิกแล้ว')}>ระงับ</button>
@@ -150,6 +215,75 @@ export default function SuperAdminClinics() {
           </div>
         )}
       </Card>
+
+      <Card title="รายการรับเงินล่าสุด">
+        {!revenue || revenue.recentPayments.length === 0 ? (
+          <Empty>ยังไม่มีรายการรับเงิน — เมื่อคลินิกจ่ายผ่าน Stripe ระบบจะบันทึกให้อัตโนมัติ หรือกด "รับเงิน" ในตารางด้านบน</Empty>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่รับเงิน</th><th>คลินิก</th><th>แพ็กเกจ</th><th>ช่องทาง</th>
+                  <th className="num">จำนวนเงิน</th><th>หมายเหตุ / อ้างอิง</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenue.recentPayments.map((p) => (
+                  <tr key={p.id}>
+                    <td className="numeric">{thaiDate(p.paidAt.slice(0, 10))}</td>
+                    <td>{p.clinicName}</td>
+                    <td>{p.planCode || '-'}</td>
+                    <td><Pill status={p.method} label={p.methodLabel} /></td>
+                    <td className="numeric num"><strong className="money">{baht(p.amountThb)}</strong></td>
+                    <td><span className="sub">{p.note || p.reference || '-'}</span></td>
+                    <td>
+                      {p.manual && <button className="ghost danger" onClick={() => removePayment(p)}>ลบ</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {payForm && (
+        <Modal
+          title={`บันทึกรับเงิน · ${payForm.clinic.name}`}
+          onClose={() => setPayForm(null)}
+          footer={<>
+            <button onClick={() => setPayForm(null)}>ยกเลิก</button>
+            <button className="primary" onClick={savePayment} disabled={!(Number(payForm.amountThb) > 0)}>บันทึก</button>
+          </>}
+        >
+          <div className="form-grid">
+            <Field label="จำนวนเงิน (บาท)">
+              <input type="number" min="0" step="0.01" inputMode="decimal" value={payForm.amountThb}
+                onChange={(e) => setPayForm({ ...payForm, amountThb: e.target.value })} />
+            </Field>
+            <Field label="ช่องทาง">
+              <select value={payForm.method} onChange={(e) => setPayForm({ ...payForm, method: e.target.value })}>
+                <option value="BANK_TRANSFER">โอนเงิน</option>
+                <option value="CASH">เงินสด</option>
+              </select>
+            </Field>
+            <Field label="วันที่รับเงิน">
+              <input type="date" max={today()} value={payForm.paidDate}
+                onChange={(e) => setPayForm({ ...payForm, paidDate: e.target.value })} />
+            </Field>
+            <Field label="หมายเหตุ">
+              <input value={payForm.note} placeholder="เช่น เลขที่สลิป / รอบบิล ต.ค."
+                onChange={(e) => setPayForm({ ...payForm, note: e.target.value })} />
+            </Field>
+          </div>
+          <p className="hint">
+            แพ็กเกจปัจจุบัน: {payForm.clinic.planName || '-'}
+            {payForm.clinic.planPriceMonthlyThb > 0 && ` (${baht(payForm.clinic.planPriceMonthlyThb)}/เดือน)`}
+            {' '}· การชำระผ่าน Stripe จะถูกบันทึกอัตโนมัติ ไม่ต้องบันทึกซ้ำ
+          </p>
+        </Modal>
+      )}
 
       {form && (
         <Modal

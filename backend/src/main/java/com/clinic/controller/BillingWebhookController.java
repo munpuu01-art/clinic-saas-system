@@ -2,9 +2,11 @@ package com.clinic.controller;
 
 import com.clinic.config.StripeConfig;
 import com.clinic.service.ClinicService;
+import com.clinic.service.RevenueService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.Invoice;
 import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
@@ -26,17 +28,21 @@ import java.time.ZoneOffset;
  *
  * วิธีตั้งค่าใน Stripe Dashboard: Developers → Webhooks → Add endpoint
  *   URL: https://<โดเมน backend ของคุณ>/api/webhooks/stripe
- *   Events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
+ *   Events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted,
+ *           invoice.paid (บันทึกรายรับเข้าหน้า Super Admin)
  */
 @RestController
 @RequestMapping("/api/webhooks")
 public class BillingWebhookController {
 
     private final ClinicService clinicService;
+    private final RevenueService revenueService;
     private final StripeConfig stripeConfig;
 
-    public BillingWebhookController(ClinicService clinicService, StripeConfig stripeConfig) {
+    public BillingWebhookController(ClinicService clinicService, RevenueService revenueService,
+                                    StripeConfig stripeConfig) {
         this.clinicService = clinicService;
+        this.revenueService = revenueService;
         this.stripeConfig = stripeConfig;
     }
 
@@ -71,6 +77,14 @@ public class BillingWebhookController {
             case "customer.subscription.deleted" -> deserializer.getObject().ifPresent(obj -> {
                 if (obj instanceof Subscription sub) {
                     clinicService.cancelSubscriptionByStripeId(sub.getId());
+                }
+            });
+            // Stripe เก็บเงินสำเร็จ (ทั้งรอบแรกและทุกรอบต่ออายุ) → บันทึกเป็นรายรับของแพลตฟอร์ม
+            case "invoice.paid" -> deserializer.getObject().ifPresent(obj -> {
+                if (obj instanceof Invoice invoice) {
+                    Long amountPaid = invoice.getAmountPaid();
+                    revenueService.recordStripeInvoicePaid(invoice.getId(), invoice.getCustomer(),
+                            amountPaid == null ? 0L : amountPaid, invoice.getCurrency());
                 }
             });
             default -> { /* เหตุการณ์อื่นที่เราไม่สนใจ ไม่ต้องทำอะไร */ }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 export function Card({ title, actions, children }) {
   return (
@@ -39,7 +39,15 @@ export const PILL_TONE = {
   EMERGENCY: 'red', ELDERLY: 'amber', APPOINTMENT: 'blue', NORMAL: 'gray',
   // คลินิก / แพ็กเกจ
   TRIALING: 'violet', ACTIVE: 'green', PAST_DUE: 'amber', SUSPENDED: 'red',
-  CANCELED: 'gray', INCOMPLETE: 'amber'
+  CANCELED: 'gray', INCOMPLETE: 'amber',
+  // ช่องทางรับเงินของแพลตฟอร์ม
+  STRIPE: 'violet', BANK_TRANSFER: 'blue', CASH: 'green'
+}
+
+/** แสดงเงินบาท เช่น 2990 → ฿2,990 (ทศนิยมแสดงเฉพาะเมื่อมีสตางค์) */
+export function baht(value) {
+  const n = Number(value || 0)
+  return `฿${n.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
 export function Pill({ status, label }) {
@@ -88,4 +96,41 @@ export function thaiDate(iso) {
   if (!iso) return '-'
   const [y, m, d] = iso.split('-')
   return `${d}/${m}/${y}`
+}
+
+/**
+ * คืนค่า true เมื่อ active ค้างนานเกิน ms มิลลิวินาที
+ * ใช้บอกผู้ใช้ว่ากำลังรอเซิร์ฟเวอร์ (Render แผนฟรีต้องปลุกเครื่องประมาณ 1 นาที)
+ */
+export function useSlow(active, ms = 5000) {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!active) { setSlow(false); return undefined }
+    const timer = setTimeout(() => setSlow(true), ms)
+    return () => clearTimeout(timer)
+  }, [active, ms])
+  return slow
+}
+
+/** หน้ารอระหว่างตรวจสิทธิ์ตอนเปิดเว็บ — บอกสถานะเพิ่มเมื่อรอนาน */
+export function BootScreen() {
+  const slow = useSlow(true, 5000)
+  const verySlow = useSlow(true, 90000)
+  return (
+    <div className="boot" role="status" aria-live="polite">
+      <div className="boot-inner">
+        <span className="spinner" aria-hidden="true" />
+        <p className="boot-title">{slow ? 'กำลังเชื่อมต่อเซิร์ฟเวอร์' : 'กำลังตรวจสอบสิทธิ์…'}</p>
+        {slow && !verySlow && (
+          <p className="boot-hint">เซิร์ฟเวอร์อาจเพิ่งเริ่มทำงาน ใช้เวลาประมาณ 1 นาที ไม่ต้องปิดหน้านี้</p>
+        )}
+        {verySlow && (
+          <>
+            <p className="boot-hint">เชื่อมต่อนานกว่าปกติ ลองโหลดหน้าใหม่อีกครั้ง</p>
+            <button className="primary" onClick={() => window.location.reload()}>โหลดหน้าใหม่</button>
+          </>
+        )}
+      </div>
+    </div>
+  )
 }

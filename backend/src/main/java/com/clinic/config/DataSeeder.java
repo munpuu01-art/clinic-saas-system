@@ -3,6 +3,8 @@ package com.clinic.config;
 import com.clinic.domain.auth.Role;
 import com.clinic.domain.auth.UserAccount;
 import com.clinic.domain.billing.Plan;
+import com.clinic.domain.billing.PlatformPayment;
+import com.clinic.domain.billing.PlatformPaymentMethod;
 import com.clinic.domain.billing.Subscription;
 import com.clinic.domain.billing.SubscriptionStatus;
 import com.clinic.domain.common.ContactInfo;
@@ -17,6 +19,7 @@ import com.clinic.domain.person.StaffRole;
 import com.clinic.domain.tenant.Clinic;
 import com.clinic.domain.tenant.TenantContext;
 import com.clinic.repository.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,13 +52,16 @@ public class DataSeeder implements CommandLineRunner {
     private final UserAccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final ClinicProperties properties;
+    private final PlatformPaymentRepository platformPaymentRepository;
+    private final boolean seedDemoPayments;
 
     public DataSeeder(ClinicRepository clinicRepository, PlanRepository planRepository,
                       SubscriptionRepository subscriptionRepository,
                       SpecialtyRepository specialtyRepository, DoctorRepository doctorRepository,
                       PatientRepository patientRepository, StaffRepository staffRepository,
                       UserAccountRepository accountRepository, PasswordEncoder passwordEncoder,
-                      ClinicProperties properties) {
+                      ClinicProperties properties, PlatformPaymentRepository platformPaymentRepository,
+                      @Value("${clinic.demo.seed-payments:true}") boolean seedDemoPayments) {
         this.clinicRepository = clinicRepository;
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
@@ -66,13 +72,18 @@ public class DataSeeder implements CommandLineRunner {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.properties = properties;
+        this.platformPaymentRepository = platformPaymentRepository;
+        this.seedDemoPayments = seedDemoPayments;
     }
 
     @Override
     public void run(String... args) {
         List<Plan> plans = seedPlans();
 
-        if (clinicRepository.count() > 0) return;   // เคย seed ไปแล้ว ไม่ทำซ้ำ
+        if (clinicRepository.count() > 0) {          // เคย seed คลินิกไปแล้ว ไม่ทำซ้ำ
+            seedDemoPlatformPayments(plans);          // แต่ฐานข้อมูลเดิมที่ deploy ไปแล้วยังไม่มีประวัติรายรับ
+            return;
+        }
 
         String rawPassword = properties.getSecurity().getSeedDefaultPassword();
         Plan free = planOf(plans, "FREE");
@@ -106,6 +117,32 @@ public class DataSeeder implements CommandLineRunner {
                 (บัญชีนี้ล็อกอินไม่ได้โดยตั้งใจ — สาธิตการปฏิเสธคลินิกที่ถูกระงับ)
             ---------------------------------------------------------------
             """.formatted(rawPassword));
+
+        seedDemoPlatformPayments(plans);
+    }
+
+    /**
+     * ประวัติรายรับตัวอย่าง ให้หน้า Super Admin มีตัวเลขแสดงตั้งแต่แรก (ก่อนต่อ Stripe จริง)
+     * ทำเฉพาะเมื่อยังไม่มีรายการชำระเงินเลย — ปิดได้ด้วย env SEED_DEMO_PAYMENTS=false
+     */
+    private void seedDemoPlatformPayments(List<Plan> plans) {
+        if (!seedDemoPayments || platformPaymentRepository.count() > 0) return;
+        Plan basic = planOf(plans, "BASIC");
+        Plan pro = planOf(plans, "PRO");
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        demoPayment("jaidee-clinic", pro, now.minusMonths(2));
+        demoPayment("jaidee-clinic", pro, now.minusMonths(1));
+        demoPayment("jaidee-clinic", pro, now.minusDays(2));
+        demoPayment("mordee-clinic", basic, now.minusMonths(1).plusDays(4));
+        demoPayment("mordee-clinic", basic, now.minusDays(5));
+        demoPayment("yimsuay-dental", basic, now.minusMonths(2).plusDays(9));   // จ่ายรอบเดียวก่อนถูกระงับ
+    }
+
+    /** ใช้ Plan ที่โหลดมาแล้ว (ไม่แตะ subscription.getPlan() ที่เป็น LAZY เพราะ seeder ไม่อยู่ใน transaction) */
+    private void demoPayment(String slug, Plan plan, LocalDateTime paidAt) {
+        clinicRepository.findBySlugIgnoreCase(slug).ifPresent(clinic ->
+                platformPaymentRepository.save(new PlatformPayment(clinic.getId(), plan.getCode(),
+                        plan.getPriceMonthlyThb(), paidAt, PlatformPaymentMethod.BANK_TRANSFER, null, "ข้อมูลตัวอย่าง")));
     }
 
     /** แคตตาล็อกแพ็กเกจ — เป็นของกลาง ไม่ผูกกับคลินิกไหน สร้างครั้งเดียวไว้ก่อนมีคลินิกแรกด้วยซ้ำ */

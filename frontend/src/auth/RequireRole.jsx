@@ -1,6 +1,7 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext.jsx'
+import { BootScreen } from '../components/ui.jsx'
 
 /**
  * ยามเฝ้าเส้นทาง — ตรวจ 2 ชั้น: ล็อกอินหรือยัง และบทบาทตรงหรือไม่
@@ -11,7 +12,7 @@ export default function RequireRole({ roles, children }) {
   const location = useLocation()
 
   if (checking) {
-    return <div className="empty">กำลังตรวจสอบสิทธิ์…</div>
+    return <BootScreen />
   }
 
   if (!isAuthenticated) {

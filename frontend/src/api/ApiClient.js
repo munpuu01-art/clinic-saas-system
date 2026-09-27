@@ -167,7 +167,11 @@ export const SuperAdminApi = {
   clinics: () => api.get('/super-admin/clinics'),
   createClinic: (data) => api.post('/super-admin/clinics', data),
   setClinicStatus: (id, status) => api.patch(`/super-admin/clinics/${id}/status`, { status }),
-  plans: () => api.get('/super-admin/plans')
+  plans: () => api.get('/super-admin/plans'),
+  // ---------- รายรับของแพลตฟอร์ม ----------
+  revenue: () => api.get('/super-admin/revenue'),
+  recordPayment: (clinicId, data) => api.post(`/super-admin/clinics/${clinicId}/payments`, data),
+  deletePayment: (paymentId) => api.delete(`/super-admin/payments/${paymentId}`)
 }
 
 /** "แพ็กเกจของฉัน" — เฉพาะบัญชี ADMIN ของคลินิก จัดการแพ็กเกจของคลินิกตัวเอง */

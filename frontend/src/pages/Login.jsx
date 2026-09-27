@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { Field, Notice } from '../components/ui.jsx'
+import { Field, Notice, useSlow } from '../components/ui.jsx'
 
 const EMPTY_SIGNUP = {
   clinicSlug: '', username: '', password: '', confirm: '',
@@ -19,6 +19,7 @@ export default function Login() {
   const [signup, setSignup] = useState(EMPTY_SIGNUP)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const slow = useSlow(busy, 5000)
 
   const go = (session) => {
     const fallback = session.role === 'PATIENT' ? '/portal' : '/dashboard'
@@ -147,6 +148,9 @@ export default function Login() {
               <button className="primary block" type="submit" disabled={busy}>
                 {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
               </button>
+              {slow && (
+                <p className="hint center">กำลังเชื่อมต่อเซิร์ฟเวอร์ ครั้งแรกอาจใช้เวลาประมาณ 1 นาที</p>
+              )}
               {mode === 'patient' && (
                 <p className="hint center">
                   ยังไม่มีบัญชี? <button type="button" className="link" onClick={() => setMode('signup')}>สมัครสมาชิกที่นี่</button>
@@ -185,6 +189,9 @@ export default function Login() {
               <button className="primary block" type="submit" disabled={busy}>
                 {busy ? 'กำลังสมัคร…' : 'สมัครและเข้าสู่ระบบ'}
               </button>
+              {slow && (
+                <p className="hint center">กำลังเชื่อมต่อเซิร์ฟเวอร์ ครั้งแรกอาจใช้เวลาประมาณ 1 นาที</p>
+              )}
             </form>
           )}
         </div>

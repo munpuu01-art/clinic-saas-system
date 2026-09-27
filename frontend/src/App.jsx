@@ -3,13 +3,14 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'reac
 import { useAuth } from './auth/AuthContext.jsx'
 import RequireRole from './auth/RequireRole.jsx'
 import { Icon, ROUTE_ICON } from './components/icons.jsx'
-import { PILL_TONE } from './components/ui.jsx'
+import { BootScreen, PILL_TONE } from './components/ui.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Patients from './pages/Patients.jsx'
 import Doctors from './pages/Doctors.jsx'
 import Appointments from './pages/Appointments.jsx'
 import QueueBoard from './pages/QueueBoard.jsx'
+import QueueDisplay from './pages/QueueDisplay.jsx'
 import Accounts from './pages/Accounts.jsx'
 import MySubscription from './pages/MySubscription.jsx'
 import MyAppointments from './pages/portal/MyAppointments.jsx'
@@ -117,7 +118,7 @@ function Shell({ children }) {
 /** ส่งผู้ใช้ไปยังหน้าแรกที่เหมาะกับบทบาทของตน */
 function HomeRedirect() {
   const { isAuthenticated, role, checking } = useAuth()
-  if (checking) return <div className="boot">กำลังตรวจสอบสิทธิ์…</div>
+  if (checking) return <BootScreen />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <Navigate to={landingPathFor(role)} replace />
 }
@@ -148,6 +149,9 @@ export default function App() {
         <RequireRole roles={STAFF_ROLES}><Shell><Appointments /></Shell></RequireRole>} />
       <Route path="/queue" element={
         <RequireRole roles={STAFF_ROLES}><Shell><QueueBoard /></Shell></RequireRole>} />
+      {/* จอแสดงคิวสำหรับทีวี — เต็มจอ ไม่มีเมนู */}
+      <Route path="/queue/display" element={
+        <RequireRole roles={STAFF_ROLES}><QueueDisplay /></RequireRole>} />
       <Route path="/patients" element={
         <RequireRole roles={STAFF_ROLES}><Shell><Patients /></Shell></RequireRole>} />
       <Route path="/doctors" element={

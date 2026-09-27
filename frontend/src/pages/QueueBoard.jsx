@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { DoctorApi, LookupApi, PatientApi, QueueApi } from '../api/ApiClient.js'
 import { Card, Empty, Field, Modal, Notice, Pill, today, thaiDate } from '../components/ui.jsx'
+import { Icon } from '../components/icons.jsx'
 
 const STRATEGY_LABEL = {
   FIFO: 'มาก่อนได้ก่อน (FIFO)',
@@ -66,6 +67,12 @@ export default function QueueBoard() {
 
   const nowServing = board?.nowServing
 
+  // เปิดจอแสดงคิวในหน้าต่างใหม่ — ตั้งชื่อหน้าต่างไว้ กดซ้ำจะไม่เปิดหน้าต่างซ้อน
+  const openTv = (target) => {
+    const query = new URLSearchParams({ doctor: String(target), strategy })
+    window.open(`/queue/display?${query}`, `queue-tv-${target}`)
+  }
+
   return (
     <>
       <div className="page-head">
@@ -120,6 +127,13 @@ export default function QueueBoard() {
             <button className="ghost danger" onClick={() => act(() => QueueApi.skip(nowServing.id), 'ข้ามคิวแล้ว')}>ข้ามคิว</button>
           </>
         )}
+        <span className="spacer" />
+        <button className="btn-icon" onClick={() => openTv(doctorId)} disabled={!doctorId}>
+          <Icon.tv /> จอทีวี (ห้องนี้)
+        </button>
+        <button className="btn-icon" onClick={() => openTv('all')}>
+          <Icon.tv /> จอทีวี (ทุกห้อง)
+        </button>
       </div>
 
       <Card title={`คิวที่รออยู่ · ${thaiDate(date)} · ${STRATEGY_LABEL[board?.strategy] || board?.strategy || ''}`}>

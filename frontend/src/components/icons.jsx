@@ -26,6 +26,7 @@ export const Icon = {
   close: () => <Svg size={20}><path d="M6 6l12 12M18 6 6 18" /></Svg>,
   search: () => <Svg size={16}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Svg>,
   check: () => <Svg size={16}><path d="m5 12.5 4.5 4.5L19 7.5" /></Svg>,
+  tv: () => <Svg size={16}><rect x="2.5" y="4" width="19" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></Svg>,
   pulse: () => <Svg size={22}><path d="M3 12h4l2.5-6 4 12 2.5-6H21" /></Svg>
 }
 
